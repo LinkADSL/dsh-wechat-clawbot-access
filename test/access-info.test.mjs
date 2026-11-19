@@ -84,3 +84,17 @@ test('formatMessage reports failures and warnings', () => {
   assert.match(message, /未找到 IPv6/)
   assert.match(message, /需要更新转发/)
 })
+
+test('formatMessage explains how to recover from a missing IPv6 address', () => {
+  const message = formatMessage({
+    ok: false,
+    checkedAt: '2026-11-19T18:33:01+08:00',
+    ipv6: null,
+    urls: { ipv6: null, local: 'http://127.0.0.1:3080/?token=t' },
+    ssh: null,
+    warnings: [],
+    errors: [{ code: 'ipv6-missing', message: '未找到 IPv6' }],
+  })
+  assert.match(message, /IPv6 是手机访问所必需/)
+  assert.match(message, /恢复后可直接重发消息/)
+})

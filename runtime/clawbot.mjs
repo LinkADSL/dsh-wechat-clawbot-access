@@ -859,9 +859,14 @@ class ClawbotRuntime {
           return
         }
         failures += 1
-        this.logger.warn(`getupdates failed (${failures}): ${messageOf(error)}`)
+        // During a real network outage this loop can fail for a long time;
+        // keep the first failures and every tenth retry visible without
+        // turning the log into thousands of identical lines.
+        if (failures <= 3 || failures % 10 === 0) {
+          this.logger.warn(`getupdates failed (${failures}): ${messageOf(error)}`)
+        }
         await this.updateStatus(
-          { lastError: { code: 'poll-failed', message: messageOf(error), at: Date.now() } },
+          { lastError: { code: 'poll-failed', message: messageOf(error), at: Date.now(), failures } },
           false,
         )
         await sleep(Math.min(this.retryDelayMs * 2 ** Math.min(failures, 4), 30000), signal)
@@ -982,11 +987,35 @@ class ClawbotRuntime {
     if (verbose && text) this.logger.debug(`message text: ${clip(text, 120)}`)
     if (this.state.pendingPush) this.schedulePendingPushRetry(30_000)
     this.enqueueReply(fromId, async () => {
-      const reply = await this.buildInfoReply()
-      await this.sendText(fromId, record.contextToken, reply)
+      let reply
+      try {
+        reply = await this.buildInfoReply()
+      } catch (error) {
+        // buildInfoReply already degrades access-info failures, but never
+        // leave a received message unanswered if anything unexpected happens.
+        this.logger.error(`could not build reply for ${maskId(fromId)}: ${messageOf(error)}`)
+        reply = `${INFO_FAILED_PREFIX}${messageOf(error)}`
+      }
+      if (typeof reply !== 'string' || !reply.trim()) {
+        reply = `${INFO_FAILED_PREFIX}未能生成访问信息，请稍后重试。`
+      }
+      try {
+        await this.sendText(fromId, record.contextToken, reply)
+      } catch (error) {
+        const failure = { code: 'reply-send-failed', message: messageOf(error), at: Date.now() }
+        this.status.lastReplyError = failure
+        this.logger.error(`reply to ${maskId(fromId)} failed: ${messageOf(error)}`)
+        void this.updateStatus({ lastReplyError: failure }, false)
+        throw error
+      }
       this.status.stats.replies = (this.status.stats.replies || 0) + 1
       this.status.lastReplyAt = Date.now()
-      void this.updateStatus({ stats: this.status.stats, lastReplyAt: this.status.lastReplyAt }, false)
+      this.status.lastReplyError = null
+      this.logger.info(`replied to ${maskId(fromId)} (${reply.length} chars)`)
+      void this.updateStatus(
+        { stats: this.status.stats, lastReplyAt: this.status.lastReplyAt, lastReplyError: null },
+        false,
+      )
     })
   }
 

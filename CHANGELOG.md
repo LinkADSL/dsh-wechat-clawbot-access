@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.7.1 — 2026-11-20
+
+- Prefer IPv4 DNS for iLink requests: a temporary loss of the host's public
+  IPv6 address no longer turns normal IPv4 egress into a generic `fetch failed`.
+- Include the underlying `fetch` cause (`ECONNRESET`, `ENOTFOUND`, …) in network
+  errors and throttle repeated long-poll outage warnings.
+- Guarantee a user-facing error reply if reply construction fails, record
+  `lastReplyError`, and log successful replies.
+- Clarify the missing-IPv6 reply: local DSH still runs, but IPv6 is required for
+  phone access and the user can resend after the address recovers.
+
 ## 2.7.0 — 2026-11-19
 
 - Daemon startup now prewarms IPv6/SSH/token access info once; concurrent

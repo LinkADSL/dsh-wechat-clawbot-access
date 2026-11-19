@@ -7,7 +7,15 @@
  *
  * @module dsh-wechat-clawbot-access/runtime/ilink-client
  */
+import { setDefaultResultOrder } from 'node:dns'
+
 import { DEFAULT_BASE_URL, chunkText, messageOf, randomId } from './common.mjs'
+
+// iLink is reached from WSL over IPv4 NAT. Prefer A records: when the
+// Windows/WSL IPv6 address temporarily disappears, a verbatim AAAA-first lookup
+// otherwise spends the request on an unusable IPv6 path and reports a generic
+// "fetch failed" even though IPv4 egress still works.
+setDefaultResultOrder('ipv4first')
 
 /** One ClawBot protocol failure with a machine-readable kind preserved. */
 export class ClawbotError extends Error {
@@ -72,7 +80,12 @@ export async function requestJson(input) {
   } catch (error) {
     if (signal?.aborted) throw new ClawbotError('request aborted', 'aborted')
     if (timeout.aborted) throw new ClawbotError(`ClawBot ${pathname} timed out after ${timeoutMs}ms`, 'timeout')
-    throw new ClawbotError(`ClawBot ${pathname} request failed: ${messageOf(error)}`, 'network')
+    const cause = error && typeof error === 'object' ? error.cause : null
+    const causeDetail = cause && typeof cause === 'object'
+      ? [cause.code, cause.message].filter(Boolean).join(': ')
+      : ''
+    const detail = causeDetail && !String(messageOf(error)).includes(causeDetail) ? ` (${causeDetail})` : ''
+    throw new ClawbotError(`ClawBot ${pathname} request failed: ${messageOf(error)}${detail}`, 'network')
   }
   const raw = await response.text().catch(() => '')
   if (!response.ok) {

@@ -1,4 +1,4 @@
-# DSH 微信 ClawBot 访问桥（DeepSeek Harness 插件 · v2.7 纯脚本版）
+# DSH 微信 ClawBot 访问桥（DeepSeek Harness 插件 · v2.7.1 纯脚本版）
 
 > **用途**：为了在手机上直接打开 DSH Web：在电脑上配置好 SSH 与端口转发后，
 > 通过微信 ClawBot 获取 IPv6、token 等信息，即可在手机浏览器中打开 DSH 页面。
@@ -67,7 +67,7 @@ plugin_manager install_bundle target=https://github.com/LinkADSL/dsh-wechat-claw
 plugin_manager set_bundle target=dsh-wechat-clawbot-access enabled=true
 
 # npm 包是可选的，当前未发布；社区上架不依赖 npm。
-# 发布后可用 dsh-wechat-clawbot-access@2.7.0；清单见 docs/PUBLISHING.md。
+# 发布后可用 dsh-wechat-clawbot-access@2.7.1；清单见 docs/PUBLISHING.md。
 ```
 
 启用后：
@@ -386,6 +386,16 @@ node runtime/clawbot.mjs push
 - **二维码弹窗没出现**：确认 bundle 已启用、Client 插件已加载（升级 client.js 后需要刷新一次网页）；
   或直接看插件页状态，点「重新扫码登录」。
 - **微信回复报错**：多数是拿不到 IPv6 或 token，`access-info.mjs --json` 的 `errors`/`warnings` 会写清楚原因。
+- **bot 突然不回复、日志反复 `getupdates ... fetch failed`**：先测试 WSL 的 IPv4 出网
+  `curl -4 -I https://ilinkai.weixin.qq.com`；2.7.1 起 iLink 请求优先 IPv4，避免 Windows IPv6
+  临时消失时 AAAA 解析拖死连接。仍失败时重启插件/DSH，并查看错误后的 `cause` 详情。
+- **IPv6 突然消失**：Windows WLAN 的 IPv6 地址有 RA/租约刷新，可能短暂撤回（日志会显示
+  `240e:... -> <none>`）。用 `netsh interface ipv6 show addresses` 查看；恢复后重发消息即可。
+  这不是本地 DSH 停止运行，token 链接仍然有效。
+- **电脑休眠/Modern Standby 导致 bot 离线**：事件查看器里出现 Kernel-Power 507/506、日志
+  `getupdates ... fetch failed`；休眠时网络和 IPv6 都会关闭，插件无法收/发微信。需要随时远程访问时，
+  在 Windows 电源计划里把“使用电池/接通电源时睡眠”设为“从不”（或至少插电时从不），
+  并确认合盖行为不是睡眠。
 - **长时间无响应**：看 `status.json` 的 `phase`；`login-needed` = 需要扫码，`polling` = 正常监听。
 - **IPv6 监控提示 pending**：表示检测到变化但当时无法发送（未登录/没有回复上下文/网络失败），
   插件会在收到下一条微信消息或下次检测时自动重试。

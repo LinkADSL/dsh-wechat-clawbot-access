@@ -119,6 +119,9 @@ export function formatMessage(info) {
         ? errors.map((error) => error?.message || error?.code || '未知错误').join('；')
         : '未知错误';
       lines.push(`⚠️ DSH 信息获取失败：${summary}`);
+      if (errors.some((error) => error?.code === 'ipv6-missing')) {
+        lines.push('💡 本地 DSH 仍在运行；IPv6 是手机访问所必需，恢复后可直接重发消息。');
+      }
       lines.push(`🕒 ${when}`);
       if (ipv6) lines.push(`IPv6：${ipv6.address}`);
       if (ssh) lines.push(`SSH：端口 ${ssh.port}，用户名 ${ssh.user}`);

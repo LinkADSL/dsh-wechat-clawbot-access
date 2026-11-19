@@ -40,6 +40,7 @@ export function emptyStatus() {
     lastError: null,
     lastMessageAt: 0,
     lastReplyAt: 0,
+    lastReplyError: null,
     lastInfo: null,
     lastInfoMessage: '',
     lastPushAt: 0,

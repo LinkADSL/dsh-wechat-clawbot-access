@@ -543,7 +543,7 @@ export async function getAccessInfo(options = {}) {
         code: 'ipv6-missing',
         message: settings.noWindows
           ? '未找到可用 IPv6 地址（WSL 没有全局 IPv6，且已用 --no-windows 禁用 Windows 检测）'
-          : '未找到可用 IPv6 地址（WSL 没有全局 IPv6，Windows 主机也未返回稳定地址）',
+          : '未找到可用 IPv6 地址（WSL 没有全局 IPv6，Windows 主机也未返回稳定地址）；请检查 Windows WLAN 的 IPv6 地址是否暂时消失（RA/租约刷新）',
       });
     }
 
