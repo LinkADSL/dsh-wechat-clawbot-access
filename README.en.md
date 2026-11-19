@@ -4,7 +4,7 @@
 > the host, then ask the WeChat ClawBot for the IPv6 address and token URL and open the page in a
 > phone browser.
 
-**Repository**: <https://github.com/LinkADSL/dsh-wechat-clawbot-access> · **Package**: `dsh-wechat-clawbot-access` · **License**: MIT
+**Repository**: <https://github.com/LinkADSL/dsh-wechat-clawbot-access> (make it public before community listing) · **Package**: `dsh-wechat-clawbot-access` · **License**: MIT
 
 A pure-script [DeepSeek Harness](https://github.com/deepseek-ai) plugin that connects a personal
 WeChat account through Tencent's **ClawBot (iLink)** channel. It does **not** start an Agent or
@@ -33,7 +33,8 @@ consume LLM tokens.
 ## Quick start
 
 ```bash
-plugin_manager install_bundle target=<this-directory>  # npm: dsh-wechat-clawbot-access
+plugin_manager install_bundle target=https://github.com/LinkADSL/dsh-wechat-clawbot-access
+# npm package (optional): dsh-wechat-clawbot-access
 plugin_manager set_bundle target=<package-name> enabled=true
 ```
 

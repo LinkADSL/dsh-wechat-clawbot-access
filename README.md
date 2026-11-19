@@ -407,8 +407,9 @@ node runtime/clawbot.mjs push
 - 配置已导出 `Config` schema，可在插件管理页修改（同时仍可直接编辑 `cordis.patch.yml`）；
   状态/日志在 `~/.dsh/wechat-clawbot/`。
 - 已配置公开包名 **`dsh-wechat-clawbot-access`**、GitHub 仓库
-  **`LinkADSL/dsh-wechat-clawbot-access`** 和 MIT 许可证；尚未执行 `npm publish`（需要先 `npm login`）。
-  发布清单见 [docs/PUBLISHING.md](docs/PUBLISHING.md)。
+  **`LinkADSL/dsh-wechat-clawbot-access`** 和 MIT 许可证。社区收录走 awesome-dsh-plugin
+  的 PR（**不需要 npm 账号**），但仓库需设为 **public**、创建满 1 天并添加 `dsh-plugin` topic；
+  清单和可粘贴的条目 YAML 见 [docs/PUBLISHING.md](docs/PUBLISHING.md)。
 
 ## 9. 许可证与致谢
 

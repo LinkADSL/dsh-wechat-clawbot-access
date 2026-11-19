@@ -11,6 +11,8 @@
 - Added a Config-schema unit test and `npm ci` in CI.
 - Performance: direct `netsh.exe` portproxy lookup and a stable-IPv6 fast path make repeated
   access-info collection ~230 ms (vs ~1.5 s cold); SSH host keys are cached for 60 s.
+- Prepared the **awesome-dsh-plugin** community listing (no npm account required):
+  GitHub install command, category `remote`, submission YAML and public/topic/age checklist.
 
 ## 2.5.0 — 2026-11-19
 
