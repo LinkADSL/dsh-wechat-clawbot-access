@@ -91,8 +91,6 @@ export const DEFAULT_STATE_DIR = path.join(os.homedir(), '.dsh', 'wechat-clawbot
 
 export { clampMessage, formatDisplayTime, formatMessage } from './message-format.mjs';
 
-/** Last stable Windows IPv6, so repeated info collection can use the fast netsh path. */
-let lastStableWindowsIpv6 = '';
 export { DEFAULT_SSH_PORT, parseOpenSshPublicKey, parsePortProxyRules } from './ssh-info.mjs';
 export { WINDOWS_POWERSHELL_PATH } from './access-helpers.mjs';
 export { probeIpv6Fast } from './ipv6-info.mjs';

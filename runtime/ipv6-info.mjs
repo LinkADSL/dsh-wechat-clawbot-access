@@ -21,6 +21,9 @@ const WINDOWS_IPV6_COMMAND =
 /** Matches one WSL `ip -6 -o addr show scope global` line. */
 const RE_WSL_IPV6_LINE = /^\d+:\s+(\S+)\s+inet6\s+([0-9a-fA-F:]+)\/(\d+)\s+scope\s+global\b(.*)$/;
 
+/** Last stable Windows IPv6, so repeated info collection can use the fast netsh path. */
+let lastStableWindowsIpv6 = '';
+
 /**
  * Canonicalize one IPv6 literal to RFC 5952-ish lowercase compressed form.
  * This keeps string comparisons stable no matter which probe produced the

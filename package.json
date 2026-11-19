@@ -33,7 +33,7 @@
     "qr": "node runtime/clawbot.mjs qr",
     "info": "node runtime/access-info.mjs",
     "test": "node --test test/*.test.mjs",
-    "check": "node --check index.js && node --check client.js && node --check runtime/access-info.mjs && node --check runtime/access-helpers.mjs && node --check runtime/ssh-info.mjs && node --check runtime/message-format.mjs && node --check runtime/sender-policy.mjs && node --check runtime/daemon-options.mjs && node --check runtime/daemon-state.mjs && node --check runtime/clawbot.mjs && node --check runtime/common.mjs && node --check runtime/qr.mjs"
+    "check": "node --check index.js && node --check client.js && node --check runtime/access-info.mjs && node --check runtime/access-helpers.mjs && node --check runtime/ssh-info.mjs && node --check runtime/message-format.mjs && node --check runtime/sender-policy.mjs && node --check runtime/daemon-options.mjs && node --check runtime/daemon-state.mjs && node --check runtime/ipv6-info.mjs && node --check runtime/ilink-client.mjs && node --check runtime/clawbot.mjs && node --check runtime/common.mjs && node --check runtime/qr.mjs"
   },
   "dsh": {
     "bundle": {

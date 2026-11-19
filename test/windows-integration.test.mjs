@@ -4,7 +4,7 @@ import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { promisify } from 'node:util'
 
-import { parsePortProxyRules, probeIpv6Fast } from '../runtime/access-info.mjs'
+import { getAccessInfo, parsePortProxyRules, probeIpv6Fast } from '../runtime/access-info.mjs'
 
 const execFileAsync = promisify(execFile)
 const NETS = '/mnt/c/Windows/System32/netsh.exe'
@@ -36,4 +36,12 @@ test('Windows integration: fast IPv6 probe returns a typed observation', { skip:
   assert.ok(Array.isArray(result.warnings))
   assert.ok(Array.isArray(result.errors))
   assert.ok(Number.isFinite(result.durationMs) && result.durationMs >= 0)
+})
+
+test('Windows integration: full access-info collection has no internal error', { skip: !hasWindowsInterop && 'Windows interop not available' }, async () => {
+  const info = await getAccessInfo({ timeoutMs: 8000 })
+  assert.equal(typeof info, 'object')
+  assert.ok(Array.isArray(info.warnings))
+  assert.ok(Array.isArray(info.errors))
+  assert.equal(info.errors.some((entry) => /is not defined|internal error|采集访问信息时发生内部错误/i.test(entry.message)), false)
 })
