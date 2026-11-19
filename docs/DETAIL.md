@@ -116,7 +116,7 @@ plugin manager or in `cordis.patch.yml`.
 - Normal reply path: one access-info collection, then formatted text.
 - The daemon **prewarms** IPv6/SSH/token data once at startup; repeated
   collections reuse a stable-IPv6 fast path and cached SSH host keys.
-- Measured on the development host: first cold collection ≈1.5 s; warm
+- Measured on the development host: first cold collection ≈1.5–1.8 s; warm
   collection ≈0.2 s.
 - The hourly IPv6 watcher uses `/proc` + `netsh` and invokes PowerShell only
   when the stable address actually changes.
