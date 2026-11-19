@@ -134,23 +134,39 @@ export async function sendText(input) {
   if (!token) throw new ClawbotError('WeChat is not logged in', 'auth')
   if (!contextToken) throw new ClawbotError(`no context token for ${toUserId}`, 'config')
   for (const chunk of chunkText(text, maxSendChars)) {
-    await requestJson({
-      baseUrl,
-      token,
-      pathname: 'ilink/bot/sendmessage',
-      body: {
-        msg: {
-          from_user_id: '',
-          to_user_id: toUserId,
-          client_id: `openclaw-weixin-${randomId()}`,
-          message_type: 2,
-          message_state: 2,
-          context_token: contextToken,
-          item_list: [{ type: 1, text_item: { text: chunk } }],
-        },
-        base_info: { channel_version: channelVersion },
+    const body = {
+      msg: {
+        from_user_id: '',
+        to_user_id: toUserId,
+        client_id: `openclaw-weixin-${randomId()}`,
+        message_type: 2,
+        message_state: 2,
+        context_token: contextToken,
+        item_list: [{ type: 1, text_item: { text: chunk } }],
       },
-      timeoutMs: 30000,
-    })
+      base_info: { channel_version: channelVersion },
+    }
+    let lastError
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await requestJson({
+          baseUrl,
+          token,
+          pathname: 'ilink/bot/sendmessage',
+          body,
+          timeoutMs: 30000,
+        })
+        lastError = null
+        break
+      } catch (error) {
+        lastError = error
+        // Retry transient transport failures only. Auth/config/API rejections
+        // are final; retrying them would just duplicate the same failure.
+        const retryable = error?.code === 'network' || error?.code === 'timeout'
+        if (!retryable || attempt === 1) break
+        await new Promise((resolve) => setTimeout(resolve, 400))
+      }
+    }
+    if (lastError) throw lastError
   }
 }

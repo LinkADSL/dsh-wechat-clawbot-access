@@ -33,7 +33,7 @@ import {
 export const name = 'wechat-clawbot'
 
 /** Bundle version reported by the status route. */
-export const version = '2.7.2'
+export const version = '2.7.3'
 
 const PLUGIN_DIR = path.dirname(fileURLToPath(import.meta.url))
 const RUNTIME_SCRIPT = path.join(PLUGIN_DIR, 'runtime', 'clawbot.mjs')
@@ -264,7 +264,7 @@ class ClawbotHost {
             dispose()
           } catch {}
         }
-        void this.shutdown()
+        void this.shutdown().catch((error) => this.ctx.logger.warn(`wechat-clawbot: shutdown failed: ${messageOf(error)}`))
       }
     })
   }
@@ -296,7 +296,8 @@ class ClawbotHost {
       await enqueueCommand(this.stateDir, 'stop')
       await waitForPidGone(existing.pid, 4000)
     }
-    this.spawnDaemon()
+    const spawned = this.spawnDaemon()
+    if (!spawned) throw new Error('could not spawn the ClawBot runtime')
     return 'started'
   }
 
@@ -312,9 +313,11 @@ class ClawbotHost {
     return { alive: true, owned, pid }
   }
 
-  /** Spawn the detached pure-script runtime. */
+  /** Spawn the detached pure-script runtime.
+   * @returns {boolean} true when the child process was created.
+   */
   spawnDaemon() {
-    if (this.stopping) return
+    if (this.stopping) return false
     const args = [
       RUNTIME_SCRIPT,
       'daemon',
@@ -352,7 +355,7 @@ class ClawbotHost {
       })
     } catch (error) {
       this.ctx.logger.error(`wechat-clawbot: could not spawn the runtime: ${messageOf(error)}`)
-      return
+      return false
     }
     this.child = child
     this.spawnedAt = Date.now()
@@ -382,6 +385,7 @@ class ClawbotHost {
     child.once('error', (error) => {
       this.ctx.logger.error(`wechat-clawbot: runtime process error: ${messageOf(error)}`)
     })
+    return true
   }
 
   /** Stop the runtime and release resources. */
@@ -459,50 +463,53 @@ class ClawbotHost {
       return this.infoCache.value
     }
     const args = [ACCESS_INFO_SCRIPT, '--json', '--state-dir', this.stateDir, '--ssh-port', String(this.config.sshPort)]
-    const child = spawn(process.execPath, args, { cwd: PLUGIN_DIR, stdio: ['ignore', 'pipe', 'pipe'] })
+    const failure = (code, message) => ({
+      ok: false,
+      checkedAt: new Date().toISOString(),
+      ipv6: null,
+      dsh: null,
+      urls: { ipv6: null, local: null },
+      warnings: [],
+      errors: [{ code, message }],
+    })
+    let child
+    try {
+      child = spawn(process.execPath, args, { cwd: PLUGIN_DIR, stdio: ['ignore', 'pipe', 'pipe'] })
+    } catch (error) {
+      const value = failure('info-script-spawn-failed', messageOf(error))
+      this.infoCache = { at: Date.now(), value }
+      return value
+    }
     const stdout = []
     const stderr = []
-    child.stdout.on('data', (chunk) => stdout.push(chunk))
-    child.stderr.on('data', (chunk) => stderr.push(chunk))
+    child.stdout?.on('data', (chunk) => stdout.push(chunk))
+    child.stderr?.on('data', (chunk) => stderr.push(chunk))
     const kill = setTimeout(() => {
-      try {
-        child.kill('SIGKILL')
-      } catch {}
+      try { child.kill('SIGKILL') } catch {}
     }, 30_000)
     kill.unref?.()
     const value = await new Promise((resolve) => {
+      let settled = false
+      const finish = (result) => {
+        if (settled) return
+        settled = true
+        clearTimeout(kill)
+        resolve(result)
+      }
       child.once('error', (error) => {
-        resolve({
-          ok: false,
-          checkedAt: new Date().toISOString(),
-          ipv6: null,
-          dsh: null,
-          urls: { ipv6: null, local: null },
-          warnings: [],
-          errors: [{ code: 'info-script-failed', message: messageOf(error) }],
-        })
+        finish(failure('info-script-failed', messageOf(error)))
       })
       child.once('close', () => {
-        clearTimeout(kill)
         const text = Buffer.concat(stdout).toString('utf8').trim()
         const diagnostic = Buffer.concat(stderr).toString('utf8').trim()
         try {
-          resolve(JSON.parse(text))
+          const parsed = JSON.parse(text)
+          finish(parsed && typeof parsed === 'object' ? parsed : failure('info-script-invalid-json', 'non-object JSON response'))
         } catch (error) {
-          resolve({
-            ok: false,
-            checkedAt: new Date().toISOString(),
-            ipv6: null,
-            dsh: null,
-            urls: { ipv6: null, local: null },
-            warnings: [],
-            errors: [
-              {
-                code: 'info-script-invalid-json',
-                message: `${messageOf(error)}${diagnostic ? `: ${diagnostic.slice(0, 300)}` : ''}`,
-              },
-            ],
-          })
+          finish(failure(
+            'info-script-invalid-json',
+            `${messageOf(error)}${diagnostic ? `: ${diagnostic.slice(0, 300)}` : ''}`,
+          ))
         }
       })
     })
@@ -550,7 +557,7 @@ class ClawbotHost {
       })
     } catch (error) {
       this.ctx.logger.warn(`wechat-clawbot: status route failed: ${messageOf(error)}`)
-      sendJson(res, 500, { ok: false, message: messageOf(error) })
+      sendJson(res, error?.statusCode || 500, { ok: false, message: messageOf(error) })
     }
   }
 
@@ -593,7 +600,7 @@ class ClawbotHost {
       sendJson(res, 200, { ok: true, action, message: '指令已发送' })
     } catch (error) {
       this.ctx.logger.warn(`wechat-clawbot: action route failed: ${messageOf(error)}`)
-      sendJson(res, 500, { ok: false, message: messageOf(error) })
+      sendJson(res, error?.statusCode || 500, { ok: false, message: messageOf(error) })
     }
   }
 
@@ -608,7 +615,8 @@ class ClawbotHost {
       const info = await this.runAccessInfo({ fresh: true })
       sendJson(res, 200, { ok: Boolean(info?.ok), info })
     } catch (error) {
-      sendJson(res, 500, { ok: false, message: messageOf(error) })
+      this.ctx.logger.warn(`wechat-clawbot: info route failed: ${messageOf(error)}`)
+      sendJson(res, error?.statusCode || 500, { ok: false, message: messageOf(error) })
     }
   }
 
@@ -649,6 +657,15 @@ class ClawbotHost {
 
 // -------------------------------------------------------------------- helpers
 
+/** One route error with an HTTP status code. */
+class HttpError extends Error {
+  constructor(statusCode, message) {
+    super(message)
+    this.name = 'HttpError'
+    this.statusCode = statusCode
+  }
+}
+
 /**
  * Read and parse a bounded JSON request body.
  * @param {object} req - Node request.
@@ -660,11 +677,16 @@ async function readJsonBody(req, limit) {
   let size = 0
   for await (const chunk of req) {
     size += chunk.length
-    if (size > limit) throw new Error('request body too large')
+    if (size > limit) throw new HttpError(413, 'request body too large')
     chunks.push(chunk)
   }
   const raw = Buffer.concat(chunks).toString('utf8')
-  return raw ? JSON.parse(raw) : {}
+  if (!raw) return {}
+  try {
+    return JSON.parse(raw)
+  } catch (error) {
+    throw new HttpError(400, `invalid JSON body: ${messageOf(error)}`)
+  }
 }
 
 /**
@@ -674,11 +696,23 @@ async function readJsonBody(req, limit) {
  * @param {object} value - JSON-serializable body.
  */
 function sendJson(res, status, value) {
-  const body = JSON.stringify(value)
-  res.statusCode = status
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
-  res.setHeader('Cache-Control', 'no-store')
-  res.end(body)
+  if (res.writableEnded || res.destroyed) return
+  let body
+  try {
+    body = JSON.stringify(value)
+  } catch (error) {
+    body = JSON.stringify({ ok: false, message: `could not serialize response: ${messageOf(error)}` })
+    status = 500
+  }
+  try {
+    res.statusCode = status
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.setHeader('Cache-Control', 'no-store')
+    res.end(body)
+  } catch (error) {
+    // The peer may have disconnected between the route check and this write.
+    try { res.destroy(error) } catch {}
+  }
 }
 
 /**

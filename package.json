@@ -1,6 +1,6 @@
 {
   "name": "dsh-wechat-clawbot-access",
-  "version": "2.7.2",
+  "version": "2.7.3",
   "private": false,
   "type": "module",
   "description": "Pure-script WeChat ClawBot (iLink) access bridge for DeepSeek Harness: open the DSH Web UI on a phone via IPv6 + SSH tunnel, with QR login, owner approval, access-info replies and daily pushes. No Agent or LLM tokens.",

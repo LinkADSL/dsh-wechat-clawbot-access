@@ -1,4 +1,4 @@
-# DSH 微信 ClawBot 访问桥（DeepSeek Harness 插件 · v2.7.2 纯脚本版）
+# DSH 微信 ClawBot 访问桥（DeepSeek Harness 插件 · v2.7.3 纯脚本版）
 
 > **用途**：为了在手机上直接打开 DSH Web：在电脑上配置好 SSH 与端口转发后，
 > 通过微信 ClawBot 获取 IPv6、token 等信息，即可在手机浏览器中打开 DSH 页面。
@@ -67,7 +67,7 @@ plugin_manager install_bundle target=https://github.com/LinkADSL/dsh-wechat-claw
 plugin_manager set_bundle target=dsh-wechat-clawbot-access enabled=true
 
 # npm 包是可选的，当前未发布；社区上架不依赖 npm。
-# 发布后可用 dsh-wechat-clawbot-access@2.7.2；清单见 docs/PUBLISHING.md。
+# 发布后可用 dsh-wechat-clawbot-access@2.7.3；清单见 docs/PUBLISHING.md。
 ```
 
 启用后：
@@ -420,6 +420,19 @@ node runtime/clawbot.mjs push
   **`LinkADSL/dsh-wechat-clawbot-access`** 和 MIT 许可证。社区收录走 awesome-dsh-plugin
   的 PR（**不需要 npm 账号**），但仓库需设为 **public**、创建满 1 天并添加 `dsh-plugin` topic；
   清单和可粘贴的条目 YAML 见 [docs/PUBLISHING.md](docs/PUBLISHING.md)。
+
+### 异常处理与自恢复
+
+- 状态/命令写入使用原子临时文件 + rename，磁盘写入失败会清理临时文件并记录错误；
+- `state.json`/`status.json` 损坏或缺失时按空状态继续，不会卡死启动；
+- 单条微信消息解析失败只跳过该消息，不会终止整个 getupdates 轮询；
+- iLink 返回空对象/数组等异常响应时按 malformed 处理并重试；
+- 轮询循环意外崩溃会在 5 秒后自动重启，连续错误有退避和日志节流；
+- 网络恢复后自动清除旧的 `poll-failed` 状态；
+- 访问信息生成失败仍会发送明确错误（含本地 token 链接），发送失败记录 `lastReplyError`；
+- 单条消息发送遇到瞬时网络错误会重试一次；
+- 已捕获的异常不会让 daemon 静默退出；未捕获异常会记录、尝试清理并非零退出；
+- 子进程（access-info、runtime）启动/超时/非法 JSON 都有兜底结果，不会返回空响应。
 
 ## 9. 许可证与致谢
 

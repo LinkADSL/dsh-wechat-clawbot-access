@@ -107,6 +107,17 @@ owner 的手机微信扫码。
 - 开发机实测：冷启动首次采集约 **1.5–1.8 秒**，热路径约 **0.2 秒**；
 - IPv6 watcher 使用 `/proc` + `netsh`，只有稳定地址变化时才调用 PowerShell。
 
+## 异常处理与自恢复
+
+- 状态/状态文件写入采用临时文件 + rename；失败会清理临时文件并记录错误。
+- `state.json`/`status.json` 缺失或损坏时回退到安全的空状态，不阻塞启动。
+- 单条微信消息解析失败只跳过该消息，不会终止长轮询；iLink 异常响应会重试。
+- 轮询循环意外崩溃后 5 秒自动重启，并带退避。
+- iLink 恢复后自动清除旧的 `poll-failed` 状态。
+- 访问信息生成失败仍会发送明确错误和本地 token 链接；发送失败记录 `lastReplyError`。
+- 出站发送遇到瞬时网络错误会重试一次。
+- access-info 子进程失败或返回非法 JSON 时降级为类型化错误，不会返回空响应。
+
 ## 限制
 
 - 仅支持 Windows + WSL2；Linux/macOS 需要另写 IPv6/portproxy provider。

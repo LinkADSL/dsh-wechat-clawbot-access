@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.7.3 — 2026-11-20
+
+- Hardened malformed iLink/QR responses, per-message isolation, poll-loop
+  restart supervision, duplicate-stop protection and owner-watchdog errors.
+- Added typed host JSON errors (400/413), safe response writing, access-info
+  spawn-failure fallbacks, atomic-temp cleanup and stderr-safe logging.
+- Retried transient outbound send failures once; added global unhandled
+  rejection / uncaught exception handling.
+- Documented the exception/recovery model in README and both detail pages.
+
 ## 2.7.2 — 2026-11-20
 
 - Clear a stale `poll-failed` status after a successful long poll, so the panel

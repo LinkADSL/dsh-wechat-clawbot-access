@@ -91,9 +91,17 @@ export async function writeJsonAtomic(file, value, mode = 0o600) {
   const directory = path.dirname(file)
   await mkdir(directory, { recursive: true, mode: 0o700 })
   const temporary = `${file}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
-  await writeFile(temporary, JSON.stringify(value, null, 2), { mode })
-  await rename(temporary, file)
-  await chmod(file, mode).catch(() => {})
+  try {
+    await writeFile(temporary, JSON.stringify(value, null, 2), { mode })
+    await rename(temporary, file)
+  } catch (error) {
+    // Do not leave partial `.tmp` files behind when the disk is full or the
+    // rename races with a permissions/cleanup problem.
+    await unlink(temporary).catch(() => {})
+    throw error
+  } finally {
+    await chmod(file, mode).catch(() => {})
+  }
 }
 
 /** @returns {string} a short random identifier for command files. */
@@ -337,7 +345,13 @@ export class Logger {
     const numeric = this.levels[level] ?? this.levels.info
     const line = `[${isoLocal()}] ${level.toUpperCase()} ${message}`
     if (numeric < this.minimum) return
-    if (numeric >= this.levels.warn) process.stderr.write(`${line}\n`)
+    if (numeric >= this.levels.warn) {
+      // A detached daemon may have its stderr pipe closed by the parent; a
+      // failed write must never crash the runtime while it is logging a warning.
+      try {
+        process.stderr.write(`${line}\n`)
+      } catch {}
+    }
     this.chain = this.chain
       .then(async () => {
         await this.rotateIfNeeded()

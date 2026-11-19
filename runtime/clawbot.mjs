@@ -88,6 +88,8 @@ class ClawbotRuntime {
     this.saveTimer = null
     this.saveChain = Promise.resolve()
     this.pollAbort = null
+    /** @type {NodeJS.Timeout|null} restart timer for an unexpected poll-loop crash */
+    this.pollRestartTimer = null
     this.loginAbort = null
     this.loginTask = null
     this.controlTimer = null
@@ -222,6 +224,8 @@ class ClawbotRuntime {
     this.pendingFlushTimer = null
     if (this.pushRetryTimer) clearTimeout(this.pushRetryTimer)
     this.pushRetryTimer = null
+    if (this.pollRestartTimer) clearTimeout(this.pollRestartTimer)
+    this.pollRestartTimer = null
     this.controlTimer = null
     this.ownerTimer = null
     this.pushTimer = null
@@ -296,6 +300,9 @@ class ClawbotRuntime {
       auth: false,
       timeoutMs: 20000,
     })
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+      throw new Error('ClawBot get_bot_qrcode returned a malformed response')
+    }
     const qrcode = String(result.qrcode ?? '')
     const link = String(result.qrcode_img_content ?? result.qrcode_url ?? '')
     process.stdout.write(`qrcode: ${qrcode}\nopen in WeChat: ${link}\n`)
@@ -599,6 +606,7 @@ class ClawbotRuntime {
       if (this.stopping) return
       if (!processAlive(ownerPid)) {
         void this.requestStop(`owning DSH process ${ownerPid} exited`)
+          .catch((error) => this.logger.warn(`owner watchdog stop failed: ${messageOf(error)}`))
       }
     }, 2000)
   }
@@ -654,6 +662,17 @@ class ClawbotRuntime {
         {
           phase: this.state.token ? 'polling' : 'login-needed',
           lastError: { code: 'qr-request-failed', message: messageOf(error), at: Date.now() },
+        },
+        true,
+      )
+      if (this.state.token) this.startPolling()
+      return
+    }
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      await this.updateStatus(
+        {
+          phase: this.state.token ? 'polling' : 'login-needed',
+          lastError: { code: 'qr-malformed', message: 'ClawBot returned a malformed QR response', at: Date.now() },
         },
         true,
       )
@@ -724,6 +743,10 @@ class ClawbotRuntime {
       } catch (error) {
         if (signal.aborted) return
         this.logger.debug(`QR status poll failed: ${messageOf(error)}`)
+        continue
+      }
+      if (!result || typeof result !== 'object' || Array.isArray(result)) {
+        this.logger.debug('QR status returned a malformed response; retrying')
         continue
       }
       const state = String(result.status ?? '')
@@ -816,7 +839,15 @@ class ClawbotRuntime {
     const controller = new AbortController()
     this.pollAbort = controller
     void this.pollLoop(controller.signal).catch((error) => {
-      if (!controller.signal.aborted) this.logger.warn(`message loop stopped: ${messageOf(error)}`)
+      if (controller.signal.aborted || this.stopping) return
+      this.logger.error(`message loop crashed: ${messageOf(error)}`)
+      if (!this.pollRestartTimer) {
+        this.pollRestartTimer = setTimeout(() => {
+          this.pollRestartTimer = null
+          if (!this.stopping) this.startPolling()
+        }, 5000)
+        this.pollRestartTimer.unref?.()
+      }
     })
     this.logger.info(`listening for WeChat messages via ${this.state.baseUrl}`)
     void this.updateStatus({ phase: 'polling', connected: true }, true)
@@ -884,6 +915,11 @@ class ClawbotRuntime {
         continue
       }
       if (this.stopping || signal.aborted) return
+      if (!result || typeof result !== 'object' || Array.isArray(result)) {
+        this.logger.warn('getupdates returned a malformed response object; retrying')
+        await sleep(1000, signal)
+        continue
+      }
       if (typeof result.get_updates_buf === 'string' && result.get_updates_buf) {
         this.state.syncBuf = result.get_updates_buf
         this.queueSave()
@@ -891,7 +927,11 @@ class ClawbotRuntime {
       const messages = Array.isArray(result.msgs) ? result.msgs : []
       for (const message of messages) {
         if (this.stopping) return
-        this.acceptMessage(message)
+        try {
+          this.acceptMessage(message)
+        } catch (error) {
+          this.logger.warn(`could not process an inbound message: ${messageOf(error)}`)
+        }
       }
     }
   }
@@ -1501,6 +1541,22 @@ class ClawbotRuntime {
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)
 if (isMain) {
   const runtime = new ClawbotRuntime(parseArgs(process.argv.slice(2)))
+  // Last-resort visibility for a promise nobody caught. The daemon has many
+  // long-lived background tasks; one missed catch must not silently vanish.
+  process.on('unhandledRejection', (reason) => {
+    runtime.logger.error(`unhandled rejection: ${messageOf(reason)}`)
+  })
+  // An uncaught exception leaves the process in an unknown state. Log it,
+  // request a clean stop and exit non-zero instead of continuing half-broken.
+  process.once('uncaughtException', (error) => {
+    runtime.logger.error(`uncaught exception: ${messageOf(error)}`)
+    void runtime.requestStop('uncaught exception')
+      .catch((stopError) => runtime.logger.error(`cleanup after uncaught exception failed: ${messageOf(stopError)}`))
+      .finally(async () => {
+        await runtime.logger.flush()
+        process.exit(1)
+      })
+  })
   runtime
     .run()
     .then(async () => {

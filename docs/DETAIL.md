@@ -121,6 +121,22 @@ plugin manager or in `cordis.patch.yml`.
 - The hourly IPv6 watcher uses `/proc` + `netsh` and invokes PowerShell only
   when the stable address actually changes.
 
+## Error handling and recovery
+
+- State and status writes are atomic (temp file + rename); failed writes clean up
+  their temporary file and are logged.
+- A missing or corrupt `state.json` / `status.json` falls back to a safe empty
+  state instead of blocking startup.
+- One malformed WeChat message is skipped without terminating the long-poll
+  loop; a malformed iLink response is retried.
+- An unexpected poll-loop crash is restarted after 5 seconds with backoff.
+- Once iLink recovers, stale `poll-failed` status is cleared automatically.
+- If access-info generation fails, the owner still receives an explicit error
+  with the local token URL; send failures are recorded as `lastReplyError`.
+- Transient outbound send failures are retried once.
+- Subprocess failures and invalid JSON from `access-info` degrade to a typed
+  error result instead of an empty or crashed response.
+
 ## Limitations
 
 - Windows + WSL2 only; Linux/macOS need a different IPv6/portproxy provider.
