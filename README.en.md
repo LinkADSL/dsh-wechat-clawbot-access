@@ -57,7 +57,7 @@ plugin_manager set_bundle target=<package-name> enabled=true
 - [`docs/NETWORK.md`](docs/NETWORK.md) — Chinese network setup guide (ONT/router IPv6, firewalls,
   CGNAT, WSL portproxy, VPN interference) plus an English summary;
 - [`docs/PUBLISHING.md`](docs/PUBLISHING.md) — checklist before publishing to a community index;
-- [`CHANGELOG.md`](CHANGELOG.md), [`SECURITY.md`](SECURITY.md), [`LICENSE`](LICENSE) (MIT).
+- [`CHANGELOG.md`](CHANGELOG.md), [`SECURITY.md`](SECURITY.md), [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), [`LICENSE`](LICENSE) (MIT).
 
 ## License
 
