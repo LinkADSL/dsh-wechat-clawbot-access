@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "DSH WeChat ClawBot Access Bridge",
+    "description": "Pure-script WeChat ClawBot (iLink) access bridge for DeepSeek Harness on Windows + WSL2 with inbound public IPv6: open the DSH Web UI on a phone through an SSH tunnel, with QR login, owner approval, IPv6/SSH/token replies and daily pushes. No Agent or LLM tokens.",
+    "detail": "docs/DETAIL.md"
+  }
+}

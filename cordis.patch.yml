@@ -1,0 +1,22 @@
+# DSH 微信 ClawBot 访问桥 — 纯脚本运行时
+#
+# 运行时是独立 Node 脚本 runtime/clawbot.mjs（不经过模型、不消耗 token）。
+# Host 插件只负责：网页控制面板、二维码弹窗、以及拉起/看护该脚本。
+- insert:
+    - id: wechat-clawbot
+      name: 'dsh-wechat-clawbot-access'
+      config:
+        autoStart: true
+        pushEnabled: true
+        # 每天 15:00（本机时区）自动向已绑定的微信推送最新 IPv6 + 带 token 网页地址
+        pushHour: 15
+        pushMinute: 0
+        # 每小时检测一次本机 IPv6，地址变化时自动通过微信推送最新信息（0 = 关闭）
+        ipv6WatchMinutes: 60
+        # SSH 端口；如果改成非标端口，需同步修改 Windows portproxy/防火墙与 sshd
+        sshPort: 22
+        # 扫码确认后 token 的复用天数；超期或会话失效会自动重新弹二维码
+        reuseTokenDays: 30
+        # 允许使用机器人的微信 id；留空 = 首个联系人进入「待确认绑定」，
+        # 需要在插件页点「允许绑定」后才成为 owner
+        # allowedUsers: ['wxid_xxxxxxxx']

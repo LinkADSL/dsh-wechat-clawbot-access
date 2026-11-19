@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "DSH 微信 ClawBot 访问桥",
+    "description": "纯脚本 DSH 微信 ClawBot (iLink) 访问桥（Windows+WSL2，需可入站公网 IPv6）：手机通过 SSH 隧道打开 DSH Web；网页扫码登录、待确认绑定，微信自动回复 IPv6/SSH/token 信息，每天 15:00 与 IPv6 变化推送；不经过模型、不消耗 token。",
+    "detail": "docs/DETAIL.zh.md"
+  }
+}

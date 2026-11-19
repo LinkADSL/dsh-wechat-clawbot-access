@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="WeChat ClawBot">
+  <defs>
+    <linearGradient id="clawbot-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07C160"/>
+      <stop offset="1" stop-color="#059B4C"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#clawbot-bg)"/>
+  <path d="M14 22.5c0-3.6 3.1-6.5 7-6.5h10.5c3.9 0 7 2.9 7 6.5s-3.1 6.5-7 6.5h-1.2l-3.6 3.2c-.5.4-1.2 0-1.2-.6v-2.8c-4.2-.5-7.5-3.2-7.5-6.3z" fill="#FFFFFF"/>
+  <path d="M25.5 34.5c0-3.6 3.1-6.5 7-6.5H43c3.9 0 7 2.9 7 6.5s-3.1 6.5-7 6.5h-1.2l-3.6 3.2c-.5.4-1.2 0-1.2-.6v-2.9c-4.2-.4-7.5-3.1-7.5-6.2z" fill="#FFFFFF" fill-opacity="0.78"/>
+  <circle cx="22.5" cy="22.5" r="1.6" fill="#07C160"/>
+  <circle cx="28.5" cy="22.5" r="1.6" fill="#07C160"/>
+  <circle cx="34" cy="34.5" r="1.5" fill="#059B4C"/>
+  <circle cx="39.5" cy="34.5" r="1.5" fill="#059B4C"/>
+</svg>
