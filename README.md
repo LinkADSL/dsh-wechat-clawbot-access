@@ -388,7 +388,8 @@ node runtime/clawbot.mjs push
 - **微信回复报错**：多数是拿不到 IPv6 或 token，`access-info.mjs --json` 的 `errors`/`warnings` 会写清楚原因。
 - **bot 突然不回复、日志反复 `getupdates ... fetch failed`**：先测试 WSL 的 IPv4 出网
   `curl -4 -I https://ilinkai.weixin.qq.com`；2.7.1 起 iLink 请求优先 IPv4，避免 Windows IPv6
-  临时消失时 AAAA 解析拖死连接。仍失败时重启插件/DSH，并查看错误后的 `cause` 详情。
+  临时消失时 AAAA 解析拖死连接。**这只影响 bot 访问腾讯 iLink 的出站链路，不会获取/发送公网 IPv4，
+  手机访问仍只使用 IPv6 SSH 隧道**。仍失败时重启插件/DSH，并查看错误后的 `cause` 详情。
 - **IPv6 突然消失**：Windows WLAN 的 IPv6 地址有 RA/租约刷新，可能短暂撤回（日志会显示
   `240e:... -> <none>`）。用 `netsh interface ipv6 show addresses` 查看；恢复后重发消息即可。
   这不是本地 DSH 停止运行，token 链接仍然有效。

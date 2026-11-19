@@ -119,7 +119,7 @@ netsh interface portproxy add v6tov4 listenaddress=:: listenport=22 connectaddre
 | SSH 通了但网页 401/403 | DSH token 过期/换了；访问了错误的 Host | 重新向 bot 发消息拿最新 token 链接；隧道用 `127.0.0.1` |
 | 手机只有个别网络能连 | 手机网络没有 IPv6 / 公司或校园网封入站 | 换网络验证；使用 Tailscale/Cloudflare Tunnel |
 | 开了 VPN 后不能连 | VPN 改路由/DNS/防火墙 | 测试时退出 VPN；或配置分流/绕过 22 |
-| bot 不回复，日志 `getupdates ... fetch failed` | Windows/WSL IPv6 临时消失时 AAAA 解析失败；或 WSL IPv4 出网中断 | 先 `curl -4 -I https://ilinkai.weixin.qq.com`；2.7.1+ 优先 IPv4，仍失败时重启插件/DSH |
+| bot 不回复，日志 `getupdates ... fetch failed` | Windows/WSL IPv6 临时消失时 AAAA 解析失败；或 WSL IPv4 出网中断 | 先 `curl -4 -I https://ilinkai.weixin.qq.com`；2.7.1+ 优先 IPv4（仅 bot→iLink 出站，不影响手机 IPv6 SSH），仍失败时重启插件/DSH |
 | 昨天有 IPv6，今天突然没有 | Windows WLAN 的 RA/租约刷新会短暂撤回地址，日志出现 `240e:... -> <none>` | `netsh interface ipv6 show addresses` 查看；等待恢复/重连 WLAN；恢复后重发消息，DSH 无需重启 |
 | 每晚/合盖后 bot 离线、IPv6 消失 | Windows 进入睡眠/Modern Standby（Kernel-Power 506/507），网络和 IPv6 全部暂停 | 在电源计划中将睡眠设为“从不”（至少插电时）；远程主机不要合盖睡眠 |
 | 局域网设备能连，外网不能 | 只验证了局域网，光猫/路由器 WAN→LAN IPv6 未放行 | 用蜂窝数据复测；配置 IPv6 入站规则 |
