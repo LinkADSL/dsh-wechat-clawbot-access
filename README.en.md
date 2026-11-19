@@ -38,7 +38,7 @@ plugin_manager install_bundle target=https://github.com/LinkADSL/dsh-wechat-claw
 plugin_manager set_bundle target=<package-name> enabled=true
 ```
 
-1. Open **Settings → Plugins → WeChat ClawBot**;
+1. Open **Settings → Plugins → DSH WeChat ClawBot Access Bridge**;
 2. Scan the QR code shown in the overlay with WeChat;
 3. Send any message to the bot, then approve the pending binding in the plugin page;
 4. On the phone, add your SSH public key to the WSL `~/.ssh/authorized_keys`, configure a local

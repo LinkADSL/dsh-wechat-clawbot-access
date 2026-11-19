@@ -1,4 +1,4 @@
-# DSH 微信 ClawBot 访问桥（DeepSeek Harness 插件 · v2.6 纯脚本版）
+# DSH 微信 ClawBot 访问桥（DeepSeek Harness 插件 · v2.7 纯脚本版）
 
 > **用途**：为了在手机上直接打开 DSH Web：在电脑上配置好 SSH 与端口转发后，
 > 通过微信 ClawBot 获取 IPv6、token 等信息，即可在手机浏览器中打开 DSH 页面。
@@ -11,7 +11,7 @@
 - 你在微信里给 bot 发任何东西，脚本立刻回复**当前 IPv6、SSH 端口/用户名、隧道命令**和**带 token 的 DSH 网页地址**；取不到就回一条明确的错误信息；
 - 首次联系不会自动获得访问权：插件页确认绑定后，该微信号才成为 owner；
 - 每天**下午 15:00** 自动通过 ClawBot 把同样的信息推送到你的微信；IPv6 变化时也会推送；
-- 运行时是一个独立 Node 脚本（`runtime/clawbot.mjs`），**不经过 Agent、不创建会话、不消耗任何模型 token**；
+- 运行时是一个独立 Node 脚本（`runtime/clawbot.mjs`），**不经过 Agent、不创建会话、不消耗任何模型 token**；daemon 启动时预热 IPv6/SSH 信息，首条消息不再等冷启动；
 - 无遥测、无第三方上报：除微信 iLink 通道外不访问外部服务，状态文件只留在本机 `~/.dsh/wechat-clawbot`。
 
 官方通道：腾讯微信 ClawBot（iLink，`https://ilinkai.weixin.qq.com`）。
@@ -61,14 +61,13 @@ v2 删掉了 Session / Agent / 工具注册：所有微信逻辑都在脚本里�
 # 从本地目录安装（已安装时重复执行也是安全的）
 # 在 Harness 会话里：
 plugin_manager install_bundle target=<插件目录>
+# 从 GitHub（社区）安装：
+plugin_manager install_bundle target=https://github.com/LinkADSL/dsh-wechat-clawbot-access
 # 如果已安装但被禁用，则启用 bundle（target 用 package.json 里的 name）：
-plugin_manager set_bundle target=<package.json 的 name> enabled=true
+plugin_manager set_bundle target=dsh-wechat-clawbot-access enabled=true
 
-# 发布到 npm/社区索引后（示例，替换成实际 scope/版本）：
-plugin_manager install_bundle target=dsh-wechat-clawbot-access@2.6.0
-
-# 本包已配置公开包名 dsh-wechat-clawbot-access 与仓库 LinkADSL/dsh-wechat-clawbot-access；
-# 发布前只需 npm login 后执行 npm publish；完整清单见 docs/PUBLISHING.md。
+# npm 包是可选的，当前未发布；社区上架不依赖 npm。
+# 发布后可用 dsh-wechat-clawbot-access@2.7.0；清单见 docs/PUBLISHING.md。
 ```
 
 启用后：

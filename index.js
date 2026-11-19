@@ -33,7 +33,7 @@ import {
 export const name = 'wechat-clawbot'
 
 /** Bundle version reported by the status route. */
-export const version = '2.6.0'
+export const version = '2.7.0'
 
 const PLUGIN_DIR = path.dirname(fileURLToPath(import.meta.url))
 const RUNTIME_SCRIPT = path.join(PLUGIN_DIR, 'runtime', 'clawbot.mjs')

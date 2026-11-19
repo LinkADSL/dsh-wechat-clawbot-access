@@ -7,6 +7,7 @@ import fs from 'node:fs'
 
 export const MAX_TIMEOUT_MS = 8000
 export const DEFAULT_TIMEOUT_MS = 8000
+export const WINDOWS_POWERSHELL_PATH = '/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe'
 const RE_WSL_IPV4_LINE = /^\d+:\s+(\S+)\s+inet\s+(\d{1,3}(?:\.\d{1,3}){3})\//
 
 /** @param {string} file - file path. @returns {Promise<boolean>} whether it is readable. */
@@ -95,3 +96,17 @@ export async function detectWslIpv4(timeoutMs) {
 
 
 export { RE_WSL_IPV4_LINE }
+
+/**
+ * Shorten text for a single-line diagnostic.
+ * @param {unknown} value - any value.
+ * @param {number} [max] - maximum length (default 240).
+ * @returns {string} shortened single-line text.
+ */
+export function shorten(value, max = 240) {
+  const text = String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (text.length <= max) return text;
+  return `${text.slice(0, Math.max(0, max - 1))}…`;
+}

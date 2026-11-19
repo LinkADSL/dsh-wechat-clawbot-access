@@ -25,7 +25,6 @@ import {
   DEFAULT_BASE_URL,
   FILES,
   Logger,
-  chunkText,
   ensureStateLayout,
   firstText,
   isoLocal,
@@ -33,7 +32,6 @@ import {
   messageOf,
   processAlive,
   processCommandLine,
-  randomId,
   readJson,
   readStatus,
   removeCommand,
@@ -44,6 +42,7 @@ import {
 } from './common.mjs'
 import { createQrMatrix, toAscii } from './qr.mjs'
 import { formatMessage, getAccessInfo, probeIpv6Fast } from './access-info.mjs'
+import { clip, requestJson, sendText as sendIlinkText } from './ilink-client.mjs'
 import { parseArgs } from './daemon-options.mjs'
 import { emptyState, emptyStatus, firstErrorText, safeAccessInfo, summarizeInfo } from './daemon-state.mjs'
 import { classifySender, maskId } from './sender-policy.mjs'
@@ -61,25 +60,6 @@ const PAIRING_TEXT =
 const PAIRING_REMIND_TEXT = '⏳ 绑定请求仍在等待 DSH 插件页确认，请在插件页点击「允许绑定」。'
 const INFO_FAILED_PREFIX = '⚠️ 获取 DSH 访问信息失败：'
 const START_HINT = 'DSH ClawBot 运行时已就绪，本消息由纯脚本自动回复。'
-
-/** One ClawBot protocol failure with a machine-readable kind preserved. */
-class ClawbotError extends Error {
-  /**
-   * @param {string} message - readable description.
-   * @param {string} code - error kind: auth|network|timeout|http|json|ret|aborted|config.
-   */
-  constructor(message, code) {
-    super(message)
-    this.name = 'ClawbotError'
-    this.code = code
-  }
-}
-
-/** @param {unknown} value - text to shorten. @param {number} limit - maximum length. @returns {string} clipped text. */
-function clip(value, limit) {
-  const text = String(value ?? '')
-  return text.length <= limit ? text : `${text.slice(0, limit)}…`
-}
 
 /**
  * One running ClawBot runtime.
@@ -120,6 +100,8 @@ class ClawbotRuntime {
     this.queues = new Map()
     /** @type {{at:number, value:object, message:string}|null} */
     this.infoCache = null
+    /** @type {Promise<object>|null} deduplicates concurrent access-info collection */
+    this.infoInFlight = null
     /** @type {Set<string>} recently seen message ids */
     this.seenMessages = new Set()
     /** @type {number} current QR attempt within one login session */
@@ -192,6 +174,10 @@ class ClawbotRuntime {
     this.scheduleNextPush()
     this.startIpv6Watch()
     if (this.state.pendingPush) this.schedulePendingPushRetry(60_000)
+    // Start collecting IPv6/SSH/token data immediately so the first WeChat
+    // message does not pay the whole cold-start cost. This promise is also
+    // reused by a message that arrives while it is still running.
+    void this.prewarmAccessInfo()
     void this.tickleLogin().catch((error) => this.logger.error(`startup login failed: ${messageOf(error)}`))
 
     await this.finished
@@ -1066,13 +1052,49 @@ class ClawbotRuntime {
    * Compute the reply text: latest IPv6 + token-bearing DSH Web URL.
    * @returns {Promise<string>} WeChat-ready message.
    */
+  /**
+   * Collect access information, sharing one in-flight request between the
+   * startup prewarm, a user reply and a push.
+   * @returns {Promise<object>} collector result.
+   */
+  async collectAccessInfo() {
+    if (this.infoInFlight) return this.infoInFlight
+    this.infoInFlight = getAccessInfo({ stateDir: this.stateDir, sshPort: this.options.sshPort })
+      .finally(() => { this.infoInFlight = null })
+    return this.infoInFlight
+  }
+
+  /**
+   * Warm the access-info cache once at daemon start; never blocks message
+   * handling or login and never fails the runtime.
+   * @returns {Promise<void>}
+   */
+  async prewarmAccessInfo() {
+    const startedAt = Date.now()
+    try {
+      const info = await this.collectAccessInfo()
+      const message = formatMessage(info)
+      this.infoCache = { at: Date.now(), value: info, message }
+      this.status.lastInfo = summarizeInfo(info)
+      this.status.lastInfoMessage = message
+      this.status.lastInfoAt = Date.now()
+      await this.updateStatus(
+        { lastInfo: this.status.lastInfo, lastInfoMessage: message, lastInfoAt: this.status.lastInfoAt },
+        true,
+      )
+      this.logger.info(`access info prewarmed in ${Date.now() - startedAt}ms`)
+    } catch (error) {
+      this.logger.warn(`access info prewarm failed: ${messageOf(error)}`)
+    }
+  }
+
   async buildInfoReply() {
     const cached = this.infoCache
     if (cached && Date.now() - cached.at < 5000) return cached.message
     let info = null
     let message = ''
     try {
-      info = await getAccessInfo({ stateDir: this.stateDir, sshPort: this.options.sshPort })
+      info = await this.collectAccessInfo()
       message = formatMessage(info)
     } catch (error) {
       this.logger.error(`access info failed: ${messageOf(error)}`)
@@ -1292,7 +1314,7 @@ class ClawbotRuntime {
     let info = null
     let infoOk = false
     try {
-      info = await getAccessInfo({ stateDir: this.stateDir, sshPort: this.options.sshPort })
+      info = await this.collectAccessInfo()
       infoOk = Boolean(info?.ok)
       message = `${prefix}${formatMessage(info)}`
     } catch (error) {
@@ -1396,94 +1418,40 @@ class ClawbotRuntime {
   // ------------------------------------------------------------- wechat I/O
 
   /**
-   * Send one text message, split into protocol-sized chunks.
+   * Send one text message through the standalone iLink client.
    * @param {string} toUserId - recipient WeChat user id.
    * @param {string} contextToken - context token from that contact's latest message.
    * @param {string} text - message body.
+   * @returns {Promise<void>}
    */
   async sendText(toUserId, contextToken, text) {
-    if (!this.state.token) throw new ClawbotError('WeChat is not logged in', 'auth')
-    if (!contextToken) throw new ClawbotError(`no context token for ${toUserId}`, 'config')
-    const chunks = chunkText(text, this.maxSendChars)
-    for (const chunk of chunks) {
-      await this.request('ilink/bot/sendmessage', {
-        body: {
-          msg: {
-            from_user_id: '',
-            to_user_id: toUserId,
-            client_id: `openclaw-weixin-${randomId()}`,
-            message_type: 2,
-            message_state: 2,
-            context_token: contextToken,
-            item_list: [{ type: 1, text_item: { text: chunk } }],
-          },
-          base_info: { channel_version: this.options.channelVersion },
-        },
-        timeoutMs: 30000,
-      })
-    }
+    return sendIlinkText({
+      baseUrl: this.state.baseUrl || this.baseUrl,
+      token: this.state.token,
+      toUserId,
+      contextToken,
+      text,
+      maxSendChars: this.maxSendChars,
+      channelVersion: this.options.channelVersion,
+    })
   }
 
   /**
-   * Call one ClawBot iLink endpoint with the protocol headers.
+   * Call one ClawBot iLink endpoint through the standalone client.
    * @param {string} pathname - endpoint path below the base URL.
    * @param {{method?: string, body?: unknown, timeoutMs?: number, signal?: AbortSignal, auth?: boolean}} [options]
    *   request options.
    * @returns {Promise<object>} parsed JSON response.
    */
   async request(pathname, options = {}) {
-    const { method = 'POST', body, timeoutMs = 30000, signal, auth = true } = options
-    const base = (this.state.baseUrl || this.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '')
-    const timeout = AbortSignal.timeout(timeoutMs)
-    const composed = signal && !signal.aborted ? AbortSignal.any([signal, timeout]) : timeout
-    const headers = {
-      'Content-Type': 'application/json',
-      AuthorizationType: 'ilink_bot_token',
-      'X-WECHAT-UIN': Buffer.from(String(Math.floor(Math.random() * 0xffffffff))).toString('base64'),
-    }
-    if (auth && this.state.token) headers.Authorization = `Bearer ${this.state.token}`
-    let response
-    try {
-      response = await fetch(`${base}/${pathname}`, {
-        method,
-        headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
-        signal: composed,
-      })
-    } catch (error) {
-      if (signal?.aborted) throw new ClawbotError('request aborted', 'aborted')
-      if (timeout.aborted) throw new ClawbotError(`ClawBot ${pathname} timed out after ${timeoutMs}ms`, 'timeout')
-      throw new ClawbotError(`ClawBot ${pathname} request failed: ${messageOf(error)}`, 'network')
-    }
-    const raw = await response.text().catch(() => '')
-    if (!response.ok) {
-      const authFailure = response.status === 401 || response.status === 403
-      throw new ClawbotError(
-        `ClawBot ${pathname} returned HTTP ${response.status}: ${clip(raw, 240)}`,
-        authFailure ? 'auth' : 'http',
-      )
-    }
-    let parsed
-    try {
-      parsed = raw ? JSON.parse(raw) : {}
-    } catch {
-      throw new ClawbotError(`ClawBot ${pathname} returned invalid JSON: ${clip(raw, 240)}`, 'json')
-    }
-    if (typeof parsed.errcode === 'number' && parsed.errcode !== 0) {
-      const authFailure = parsed.errcode === -14 || /session timeout|token/i.test(String(parsed.errmsg ?? ''))
-      throw new ClawbotError(
-        `ClawBot ${pathname} failed: errcode=${parsed.errcode}${parsed.errmsg ? ` (${parsed.errmsg})` : ''}`,
-        authFailure ? 'auth' : 'ret',
-      )
-    }
-    if (typeof parsed.ret === 'number' && parsed.ret !== 0) {
-      throw new ClawbotError(
-        `ClawBot ${pathname} failed with ret=${parsed.ret}${parsed.errmsg ? `: ${parsed.errmsg}` : ''}`,
-        'ret',
-      )
-    }
-    return parsed
+    return requestJson({
+      baseUrl: this.state.baseUrl || this.baseUrl,
+      token: this.state.token,
+      pathname,
+      ...options,
+    })
   }
+
 }
 
 // -------------------------------------------------------------------- helpers

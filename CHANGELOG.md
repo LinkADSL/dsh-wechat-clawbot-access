@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.7.0 — 2026-11-19
+
+- Daemon startup now prewarms IPv6/SSH/token access info once; concurrent
+  replies and pushes share one in-flight collection (cold first message is no
+  longer the full ~1.5 s collection).
+- Added real Windows-interop tests: `netsh interface portproxy` output parsing
+  and the fast IPv6 probe run against the local Windows host when available and
+  skip cleanly elsewhere.
+- Split `access-info.mjs`: IPv6 detection/probes now live in
+  `runtime/ipv6-info.mjs`, with shared `shorten` in `access-helpers`.
+- Split the iLink HTTP protocol and message sending into
+  `runtime/ilink-client.mjs`.
+- Expanded the bilingual plugin detail pages (`docs/DETAIL.md`,
+  `docs/DETAIL.zh.md`) with architecture, security model, requirements, install,
+  configuration, performance and limitations.
+
 ## 2.6.0 — 2026-11-19
 
 - Renamed the project/package to **DSH WeChat ClawBot Access Bridge**
