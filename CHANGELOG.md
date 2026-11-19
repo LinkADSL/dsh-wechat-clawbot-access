@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7.2 — 2026-11-20
+
+- Clear a stale `poll-failed` status after a successful long poll, so the panel
+  stops showing an old outage once the iLink channel recovers.
+- Treat a 90 s `getupdates` idle timeout as a normal long-poll result instead of
+  a logged network failure and exponential backoff.
+
 ## 2.7.1 — 2026-11-20
 
 - Prefer IPv4 DNS for iLink requests: a temporary loss of the host's public

@@ -1,4 +1,4 @@
-# DSH 微信 ClawBot 访问桥（DeepSeek Harness 插件 · v2.7.1 纯脚本版）
+# DSH 微信 ClawBot 访问桥（DeepSeek Harness 插件 · v2.7.2 纯脚本版）
 
 > **用途**：为了在手机上直接打开 DSH Web：在电脑上配置好 SSH 与端口转发后，
 > 通过微信 ClawBot 获取 IPv6、token 等信息，即可在手机浏览器中打开 DSH 页面。
@@ -67,7 +67,7 @@ plugin_manager install_bundle target=https://github.com/LinkADSL/dsh-wechat-claw
 plugin_manager set_bundle target=dsh-wechat-clawbot-access enabled=true
 
 # npm 包是可选的，当前未发布；社区上架不依赖 npm。
-# 发布后可用 dsh-wechat-clawbot-access@2.7.1；清单见 docs/PUBLISHING.md。
+# 发布后可用 dsh-wechat-clawbot-access@2.7.2；清单见 docs/PUBLISHING.md。
 ```
 
 启用后：

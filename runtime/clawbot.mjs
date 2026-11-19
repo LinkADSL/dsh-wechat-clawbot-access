@@ -846,8 +846,19 @@ class ClawbotRuntime {
           timeoutMs: 90000,
         })
         failures = 0
+        // A successful long poll means the channel is healthy again; clear a
+        // stale network error so the panel does not keep showing an old outage.
+        if (this.status.lastError?.code === 'poll-failed') {
+          await this.updateStatus({ lastError: null }, false)
+        }
       } catch (error) {
         if (this.stopping || signal.aborted) return
+        // A 90 s getupdates timeout with no new messages is the normal idle
+        // path of this long-poll API, not a network failure.
+        if (error?.code === 'timeout') {
+          await sleep(1000, signal)
+          continue
+        }
         if (error?.code === 'auth') {
           this.logger.warn(`ClawBot session expired (${messageOf(error)}); requesting a new login QR`)
           this.state.token = ''
